@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FocusFlow — Study Together</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #F7F5F0; --surface: #fff; --surface2: #F0EDE6; --border: #E8E3DA;
+  --text: #1A1714; --muted: #8C8580; --accent: #2D5016; --accent-light: #EBF2E3;
+  --red: #C8490A; --red-light: #FDEEE7; --shadow: 0 2px 16px rgba(0,0,0,0.06);
+  --r: 14px;
+}
+body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; font-size:15px; }
+input, button, textarea { font-family:'DM Sans',sans-serif; }
+button { cursor:pointer; }
+
+/* ─── SCREENS ─── */
+.screen { display:none; }
+.screen.active { display:flex; }
+
+/* LOGIN */
+#loginScreen {
+  min-height:100vh; align-items:center; justify-content:center;
+  flex-direction:column; padding:24px;
+  background: radial-gradient(ellipse at 20% 50%, #e8f5e0 0%, transparent 60%),
+              radial-gradient(ellipse at 80% 20%, #fdeee7 0%, transparent 50%),
+              var(--bg);
+}
+.login-card {
+  background:var(--surface); border-radius:22px; padding:40px 36px;
+  width:100%; max-width:440px; border:1px solid var(--border);
+  box-shadow:0 8px 48px rgba(0,0,0,0.08);
+  animation: cardIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes cardIn { from{opacity:0;transform:translateY(24px) scale(0.97)} to{opacity:1;transform:none} }
+
+.logo-mark { width:52px;height:52px;background:var(--text);border-radius:13px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 6px 20px rgba(0,0,0,0.15); }
+.logo-mark svg { width:24px;height:24px; }
+.login-title { font-family:'DM Serif Display',serif;font-size:32px;text-align:center;letter-spacing:-0.6px;margin-bottom:6px; }
+.login-sub { font-size:14px;color:var(--muted);text-align:center;margin-bottom:32px; }
+
+.divider { display:flex;align-items:center;gap:12px;margin:18px 0; }
+.divider::before,.divider::after { content:'';flex:1;height:1px;background:var(--border); }
+.divider span { font-size:12px;color:var(--muted);font-weight:500; }
+
+/* APP LAYOUT */
+#appScreen { min-height:100vh; }
+.app-layout { display:grid;grid-template-columns:250px 1fr;min-height:100vh; }
+
+/* SIDEBAR */
+.sidebar {
+  background:var(--surface);border-right:1px solid var(--border);
+  padding:28px 20px;display:flex;flex-direction:column;gap:28px;
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+.sidebar-logo { display:flex;align-items:center;gap:10px; }
+.sidebar-logo-icon { width:30px;height:30px;background:var(--text);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+.sidebar-logo-text { font-family:'DM Serif Display',serif;font-size:16px;letter-spacing:-0.3px; }
+.sidebar-logo-sub { font-size:10px;color:var(--muted);font-weight:600;letter-spacing:0.5px;text-transform:uppercase; }
+
+.user-card { background:var(--surface2);border-radius:12px;padding:14px 12px; }
+.user-card-row { display:flex;align-items:center;gap:10px;margin-bottom:10px; }
+.user-name { font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.user-email { font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.edit-name-btn { width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px;font-size:12px;color:var(--muted);transition:all 0.15s; }
+.edit-name-btn:hover { color:var(--text);border-color:#ccc; }
+
+nav.sidebar-nav { display:flex;flex-direction:column;gap:2px; }
+.nav-item { display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:none;background:none;font-size:14px;font-weight:500;color:var(--muted);width:100%;text-align:left;transition:all 0.15s; }
+.nav-item:hover { background:var(--surface2);color:var(--text); }
+.nav-item.active { background:var(--accent-light);color:var(--accent); }
+.nav-item .icon { font-size:16px;width:20px;text-align:center; }
+.nav-item .badge { margin-left:auto;background:var(--red);color:white;border-radius:100px;font-size:10px;font-weight:700;padding:2px 7px; }
+
+.streak-widget { background:var(--surface2);border-radius:12px;padding:14px;margin-top:auto; }
+.streak-num { font-family:'DM Serif Display',serif;font-size:32px;color:var(--red);line-height:1; }
+.streak-label { font-size:12px;color:var(--muted);font-weight:500;margin-top:3px; }
+.streak-dots { display:flex;gap:4px;margin-top:10px; }
+.streak-dot { width:20px;height:20px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--muted); }
+.streak-dot.done { background:var(--accent);color:white; }
+.streak-dot.today-done { background:var(--red);color:white; }
+
+.signout-btn { width:100%;background:none;border:1px solid var(--border);border-radius:8px;padding:8px;font-size:12px;color:var(--muted);transition:all 0.15s; }
+.signout-btn:hover { color:var(--red);border-color:var(--red); }
+
+/* MAIN */
+.main { padding:36px 44px;display:flex;flex-direction:column;gap:24px;overflow-y:auto; }
+
+/* PAGES */
+.page { display:none;flex-direction:column;gap:24px; }
+.page.active { display:flex; }
+
+/* CARDS */
+.cards-grid { display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px; }
+.card { background:var(--surface);border-radius:var(--r);padding:22px;border:1px solid var(--border);box-shadow:var(--shadow); }
+.card-label { font-size:10px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--muted);margin-bottom:8px; }
+.card-value { font-family:'DM Serif Display',serif;font-size:30px;letter-spacing:-0.5px; }
+.card-sub { font-size:12px;color:var(--muted);margin-top:4px; }
+.c-green { color:var(--accent); }
+.c-orange { color:var(--red); }
+
+/* PANEL */
+.panel { background:var(--surface);border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden; }
+.panel-header { padding:18px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border); }
+.panel-title { font-weight:700;font-size:15px; }
+.panel-body { padding:20px 24px; }
+
+/* GOAL BAR */
+.goal-bar-wrap { background:var(--surface2);border-radius:100px;height:10px;overflow:hidden; }
+.goal-bar-fill { height:100%;background:var(--accent);border-radius:100px;transition:width 0.8s cubic-bezier(0.4,0,0.2,1); }
+.goal-footer { display:flex;justify-content:space-between;margin-top:10px;font-size:12px;color:var(--muted); }
+
+/* TIMER */
+.timer-section { background:var(--surface);border-radius:var(--r);border:1px solid var(--border);box-shadow:var(--shadow);padding:36px 40px;display:flex;align-items:center;gap:44px; }
+.timer-left { flex:1; }
+.timer-subject { font-family:'DM Serif Display',serif;font-size:20px;border:none;border-bottom:2px solid var(--border);background:none;outline:none;width:100%;padding-bottom:8px;margin-bottom:22px;color:var(--text);transition:border-color 0.2s; }
+.timer-subject:focus { border-color:var(--accent); }
+.timer-subject::placeholder { color:var(--border); }
+.timer-clock { font-family:'JetBrains Mono',monospace;font-size:64px;font-weight:500;letter-spacing:-2px;line-height:1;transition:color 0.3s; }
+.timer-clock.running { color:var(--accent); }
+.timer-clock.paused  { color:var(--red); }
+.mode-tabs { display:flex;gap:4px;margin-top:16px;background:var(--surface2);border-radius:10px;padding:4px;width:fit-content; }
+.mode-tab { padding:6px 14px;border-radius:7px;border:none;background:none;font-size:13px;font-weight:500;color:var(--muted);transition:all 0.15s; }
+.mode-tab.active { background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+.timer-controls { display:flex;gap:10px;margin-top:22px;align-items:center;flex-wrap:wrap; }
+
+/* BUTTONS */
+.btn { padding:11px 22px;border-radius:10px;border:none;font-size:14px;font-weight:600;transition:all 0.15s;letter-spacing:0.1px; }
+.btn-sm { padding:7px 14px;font-size:13px;border-radius:8px; }
+.btn-primary { background:var(--text);color:white; }
+.btn-primary:hover { background:#333;transform:translateY(-1px); }
+.btn-secondary { background:var(--surface2);color:var(--text);border:1px solid var(--border); }
+.btn-secondary:hover { background:var(--border); }
+.btn-danger { background:var(--red-light);color:var(--red);border:1px solid #f0c0a8; }
+.btn-danger:hover { background:#fad5c4; }
+.btn-google { width:100%;padding:13px 18px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:12px;font-size:15px;font-weight:600;transition:box-shadow 0.15s; }
+.btn-google:hover { box-shadow:0 4px 20px rgba(0,0,0,0.1); }
+.btn-custom { width:100%;padding:13px 18px;border-radius:12px;border:1.5px solid var(--accent);background:var(--accent-light);display:flex;align-items:center;gap:12px;font-size:15px;font-weight:600;color:var(--accent);transition:background 0.15s; }
+.btn-custom:hover { background:#d4edbc; }
+.btn-restrict { background:linear-gradient(135deg,#C8490A,#e05a1a);color:white;font-weight:700;box-shadow:0 4px 14px rgba(200,73,10,0.3); }
+.btn-restrict:hover { transform:translateY(-2px);box-shadow:0 6px 20px rgba(200,73,10,0.45); }
+
+/* RING */
+.ring-wrap { position:relative;width:130px;height:130px;flex-shrink:0; }
+.ring-wrap svg { transform:rotate(-90deg); }
+.ring-text { position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center; }
+.ring-pct { font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:500; }
+.ring-label { font-size:11px;color:var(--muted);font-weight:500;margin-top:2px; }
+
+/* SESSION LIST */
+.session-item { display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--surface2); }
+.session-item:last-child { border-bottom:none; }
+.session-dot { width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0; }
+.session-subj { flex:1;font-weight:500;font-size:14px; }
+.session-dur { font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted); }
+.session-time { font-size:12px;color:var(--muted);width:52px;text-align:right; }
+.session-del { background:none;border:none;color:var(--border);font-size:18px;padding:0 4px;transition:color 0.15s; }
+.session-del:hover { color:var(--red); }
+
+/* COMMUNITY */
+.leaderboard-row { display:flex;align-items:center;gap:14px;padding:15px 24px;border-bottom:1px solid var(--surface2);transition:background 0.1s; }
+.leaderboard-row:last-child { border-bottom:none; }
+.leaderboard-row.me { background:var(--accent-light); }
+.leaderboard-row:hover:not(.me) { background:#FAFAF8; }
+.rank-badge { width:36px;text-align:center;font-size:18px;flex-shrink:0; }
+.lb-info { flex:1;min-width:0; }
+.lb-name { font-weight:600;font-size:14px;display:flex;align-items:center;gap:6px; }
+.lb-email { font-size:12px;color:var(--muted); }
+.lb-bar-wrap { width:110px; }
+.lb-bar-track { background:var(--surface2);border-radius:100px;height:6px;overflow:hidden;margin-bottom:4px; }
+.lb-bar-fill { height:100%;background:var(--accent);border-radius:100px;transition:width 0.6s; }
+.lb-time { font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted); }
+.badge-you { font-size:10px;background:var(--accent);color:white;padding:2px 8px;border-radius:100px;font-weight:700; }
+.badge-live { font-size:10px;background:#22c55e;color:white;padding:2px 7px;border-radius:100px;font-weight:700;animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+.motivate-btn { padding:6px 12px;border-radius:8px;border:none;background:var(--accent-light);color:var(--accent);font-size:12px;font-weight:600;transition:all 0.15s;white-space:nowrap; }
+.motivate-btn:hover { background:#d4edbc; }
+.motivate-btn:disabled { opacity:0.5;cursor:not-allowed; }
+
+/* INBOX */
+.inbox-msg { padding:15px 24px;border-bottom:1px solid var(--surface2);animation:slideIn 0.25s ease; }
+.inbox-msg:last-child { border-bottom:none; }
+.inbox-from { display:flex;align-items:center;gap:8px;margin-bottom:6px; }
+.inbox-text { font-size:14px;line-height:1.7;color:var(--text);font-style:italic;padding-left:30px; }
+
+/* AI MSG */
+.ai-msg { background:linear-gradient(135deg,var(--accent-light),#d4edbc);border-radius:var(--r);padding:20px 24px;border:1px solid #b8d99e;animation:slideIn 0.3s ease; }
+
+/* BLOCKER */
+.blocker-grid { display:grid;grid-template-columns:1fr 1fr;gap:10px; }
+.blocker-item { display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:10px;background:var(--surface2);border:1.5px solid transparent;transition:all 0.2s; }
+.blocker-item.on { background:var(--accent-light);border-color:#b8d99e; }
+.blocker-left { display:flex;align-items:center;gap:10px; }
+.blocker-name { font-weight:500;font-size:13px; }
+.blocker-desc { font-size:11px;color:var(--muted); }
+.toggle-label { position:relative;width:40px;height:22px;flex-shrink:0; }
+.toggle-label input { opacity:0;width:0;height:0;position:absolute; }
+.toggle-track { position:absolute;inset:0;border-radius:100px;background:var(--border);cursor:pointer;transition:background 0.2s; }
+.toggle-thumb { position:absolute;width:16px;height:16px;border-radius:50%;background:white;top:3px;left:3px;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+.toggle-label input:checked ~ .toggle-track { background:var(--accent); }
+.toggle-label input:checked ~ .toggle-thumb { left:21px; }
+.custom-tag { display:inline-flex;align-items:center;gap:6px;background:var(--red-light);border:1px solid #f0c0a8;padding:3px 10px;border-radius:100px;font-size:12px;color:var(--red);font-weight:600; }
+
+/* BROWSER */
+.browser-bar { display:flex;align-items:center;gap:8px;background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:8px 12px;transition:border-color 0.2s; }
+.browser-bar.shield { border-color:var(--accent);background:var(--accent-light); }
+.browser-url { flex:1;border:none;background:none;outline:none;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text); }
+.browser-url::placeholder { color:var(--muted);font-family:'DM Sans',sans-serif; }
+.browser-viewport { min-height:280px;border-radius:10px;border:1.5px solid var(--border);overflow:hidden;background:var(--surface2); }
+.browser-block-screen { display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:280px;padding:40px;text-align:center;background:linear-gradient(160deg,#fff5f0,#fde8df); }
+.browser-safe-screen { display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:280px;padding:40px;text-align:center;background:var(--accent-light); }
+.browser-empty { display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:280px;padding:40px;text-align:center;color:var(--muted); }
+.block-domain { font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;background:rgba(200,73,10,0.1);color:var(--red);padding:5px 16px;border-radius:100px;margin:10px 0;border:1px solid rgba(200,73,10,0.2); }
+.block-log-item { display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--red-light);border-radius:8px;border-left:3px solid var(--red); }
+
+/* FORM FIELDS */
+.field-label { display:block;font-size:11px;font-weight:700;color:var(--text);margin-bottom:6px;letter-spacing:0.3px;text-transform:uppercase; }
+.field-input { width:100%;padding:11px 14px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface);font-size:15px;outline:none;transition:border-color 0.2s,box-shadow 0.2s;color:var(--text); }
+.field-input:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(45,80,22,0.08); }
+.field-input.error { border-color:var(--red);background:var(--red-light);box-shadow:0 0 0 3px rgba(200,73,10,0.08); }
+.field-error { font-size:12px;color:var(--red);margin-top:5px;font-weight:500; }
+.field-hint  { font-size:11px;color:var(--muted);margin-top:4px; }
+
+/* AVATAR */
+.avatar { border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;font-size:13px; }
+
+/* FEATURE PILLS */
+.feature-pills { display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:24px; }
+.feature-pill { background:var(--surface2);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500; }
+
+/* TOAST */
+#toast { position:fixed;bottom:24px;right:24px;z-index:9999;background:var(--text);color:white;padding:13px 20px;border-radius:12px;font-size:14px;font-weight:500;box-shadow:0 8px 32px rgba(0,0,0,0.2);max-width:300px;transform:translateY(80px);opacity:0;transition:all 0.3s cubic-bezier(0.4,0,0.2,1);pointer-events:none; }
+#toast.show { transform:translateY(0);opacity:1; }
+
+/* LIVE DOT */
+.live-dot { width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;margin-right:4px;animation:pulse 2s infinite; }
+
+/* EMPTY STATE */
+.empty { text-align:center;padding:40px;color:var(--muted); }
+.empty-icon { font-size:32px;margin-bottom:8px; }
+.empty-text { font-size:14px; }
+
+/* SETUP PROMPT */
+.setup-prompt { background:var(--surface2);border-radius:var(--r);padding:32px;text-align:center;border:2px dashed var(--border); }
+
+@keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+@keyframes spin { to{transform:rotate(360deg)} }
+
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:var(--surface2); }
+::-webkit-scrollbar-thumb { background:var(--border);border-radius:3px; }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- ══════════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════════ -->
+<div id="loginScreen" class="screen active" style="min-height:100vh;align-items:center;justify-content:center;flex-direction:column;padding:24px;background:radial-gradient(ellipse at 20% 50%,#e8f5e0,transparent 60%),radial-gradient(ellipse at 80% 20%,#fdeee7,transparent 50%),var(--bg);">
+  <div style="width:100%;max-width:450px;">
+    <div style="text-align:center;margin-bottom:32px;">
+      <div class="logo-mark"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+      <div style="font-family:'DM Serif Display',serif;font-size:34px;letter-spacing:-0.8px;margin-bottom:6px;">FocusFlow</div>
+      <div style="font-size:14px;color:var(--muted);">Study smarter. Together.</div>
+    </div>
+
+    <!-- Step: home -->
+    <div id="loginHome" class="login-card">
+      <div style="font-family:'DM Serif Display',serif;font-size:24px;margin-bottom:6px;">Welcome 👋</div>
+      <div style="font-size:14px;color:var(--muted);margin-bottom:28px;line-height:1.6;">Sign in to track study time & compete on the live leaderboard.</div>
+
+      <button class="btn-google" onclick="signInWithGoogle()">
+        <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continue with Google
+        <span style="margin-left:auto;font-size:12px;color:var(--muted);">→</span>
+      </button>
+
+      <div class="divider"><span>or</span></div>
+
+      <button class="btn-custom" onclick="showCustomForm()">
+        <span style="font-size:18px;">✏️</span>
+        Sign in with your own name
+        <span style="margin-left:auto;font-size:12px;">→</span>
+      </button>
+
+      <div class="feature-pills">
+        <div class="feature-pill"><span>⏱️</span> Study Timer</div>
+        <div class="feature-pill"><span>🏆</span> Live Leaderboard</div>
+        <div class="feature-pill"><span>💌</span> AI Motivation</div>
+        <div class="feature-pill"><span>🚫</span> Site Blocker</div>
+      </div>
+    </div>
+
+    <!-- Step: custom form -->
+    <div id="loginCustom" class="login-card" style="display:none;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px;">
+        <button onclick="showLoginHome()" style="background:var(--surface2);border:none;border-radius:8px;padding:6px 10px;font-size:15px;color:var(--muted);">←</button>
+        <div>
+          <div style="font-family:'DM Serif Display',serif;font-size:18px;">Create your profile</div>
+          <div style="font-size:12px;color:var(--muted);">Enter your name to get started</div>
+        </div>
+      </div>
+
+      <!-- Live avatar preview -->
+      <div style="display:flex;justify-content:center;margin-bottom:22px;">
+        <div style="text-align:center;">
+          <div id="avatarPreview" class="avatar" style="width:64px;height:64px;font-size:22px;background:#1a472a;color:#52b788;margin:0 auto 8px;box-shadow:0 4px 16px rgba(0,0,0,0.12);">?</div>
+          <div id="avatarName" style="font-size:13px;color:var(--muted);font-weight:500;">Your name here</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <label class="field-label">Full Name</label>
+        <input id="customName" class="field-input" type="text" placeholder="e.g. Rohan Verma" oninput="updateAvatarPreview(this.value)" onkeydown="if(event.key==='Enter')customSignIn()">
+        <div id="nameErr" class="field-error" style="display:none;"></div>
+        <div class="field-hint">Shown on the community leaderboard</div>
+      </div>
+      <div style="margin-bottom:22px;">
+        <label class="field-label">Email Address</label>
+        <input id="customEmail" class="field-input" type="email" placeholder="you@gmail.com" onkeydown="if(event.key==='Enter')customSignIn()">
+        <div id="emailErr" class="field-error" style="display:none;"></div>
+        <div class="field-hint">Used as your unique ID — no password needed</div>
+      </div>
+
+      <button id="customSignInBtn" class="btn btn-primary" style="width:100%;padding:13px;" onclick="customSignIn()">Get Started →</button>
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.6;">Community leaderboard is visible to all users.</div>
+    </div>
+
+    <!-- Firebase setup guide (shown if not configured) -->
+    <div id="firebaseSetup" class="login-card" style="display:none;">
+      <div style="font-size:24px;margin-bottom:12px;">⚙️</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:8px;">One-time Setup Required</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:20px;">
+        To enable the live leaderboard across all Chrome users, connect a free Firebase project:
+      </div>
+      <ol style="font-size:13px;line-height:2;color:var(--text);padding-left:20px;margin-bottom:20px;">
+        <li>Go to <a href="https://console.firebase.google.com" target="_blank" style="color:var(--accent);">console.firebase.google.com</a></li>
+        <li>Create a new project (free Spark plan)</li>
+        <li>Enable <strong>Authentication</strong> → Google sign-in provider</li>
+        <li>Enable <strong>Realtime Database</strong> → Start in test mode</li>
+        <li>Go to Project Settings → Web app → copy config</li>
+        <li>Paste your config below and click Save</li>
+      </ol>
+      <textarea id="firebaseConfig" style="width:100%;height:140px;border-radius:10px;border:1.5px solid var(--border);padding:12px;font-family:'JetBrains Mono',monospace;font-size:12px;resize:none;outline:none;" placeholder='Paste your firebaseConfig object here:
+{
+  apiKey: "...",
+  authDomain: "...",
+  databaseURL: "...",
+  projectId: "...",
+  ...
+}'></textarea>
+      <button class="btn btn-primary" style="width:100%;margin-top:12px;" onclick="saveFirebaseConfig()">Save & Connect</button>
+      <div class="divider"><span>or use local mode</span></div>
+      <button class="btn btn-secondary" style="width:100%;" onclick="useLocalMode()">Continue without leaderboard (local only)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     APP SCREEN
+══════════════════════════════════════════ -->
+<div id="appScreen" class="screen" style="min-height:100vh;">
+  <div class="app-layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+        <div>
+          <div class="sidebar-logo-text">FocusFlow</div>
+          <div class="sidebar-logo-sub">Study Together</div>
+        </div>
+      </div>
+
+      <div class="user-card">
+        <div class="user-card-row">
+          <div id="sidebarAvatar" class="avatar" style="width:38px;height:38px;"></div>
+          <div style="min-width:0;">
+            <div class="user-name" id="sidebarName">—</div>
+            <div class="user-email" id="sidebarEmail">—</div>
+          </div>
+        </div>
+        <button class="edit-name-btn" onclick="editName()">✏️ Edit display name</button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-page="dashboard" onclick="showPage('dashboard',this)"><span class="icon">⊞</span> Dashboard</button>
+        <button class="nav-item" data-page="community" onclick="showPage('community',this)"><span class="icon">👥</span> Community <span class="badge" id="inboxBadge" style="display:none;">0</span></button>
+        <button class="nav-item" data-page="blocker" onclick="showPage('blocker',this)"><span class="icon">🚫</span> Blocker</button>
+      </nav>
+
+      <div class="streak-widget">
+        <div class="streak-num" id="streakNum">0</div>
+        <div class="streak-label">🔥 day streak</div>
+        <div class="streak-dots" id="streakDots"></div>
+      </div>
+
+      <button class="signout-btn" onclick="signOut()">Sign out</button>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main">
+
+      <!-- DASHBOARD PAGE -->
+      <div class="page active" id="page-dashboard">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <h1 style="font-family:'DM Serif Display',serif;font-size:30px;letter-spacing:-0.5px;margin-bottom:4px;" id="greeting">Good day 👋</h1>
+            <div style="font-size:13px;color:var(--muted);font-weight:500;" id="todayDate"></div>
+          </div>
+        </div>
+
+        <div class="cards-grid">
+          <div class="card"><div class="card-label">Today's Study Time</div><div class="card-value c-green" id="todayTotal">0h 0m</div><div class="card-sub">of <span id="goalDisp">4h</span> daily goal</div></div>
+          <div class="card"><div class="card-label">Sessions Today</div><div class="card-value" id="sessionCount">0</div><div class="card-sub">completed</div></div>
+          <div class="card"><div class="card-label">Longest Session</div><div class="card-value c-orange" id="longestSess">—</div><div class="card-sub">today's best</div></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Daily Goal Progress</div>
+            <button class="btn btn-sm btn-secondary" onclick="editGoal()">Edit Goal</button>
+          </div>
+          <div class="panel-body">
+            <div class="goal-bar-wrap"><div class="goal-bar-fill" id="goalBar" style="width:0%"></div></div>
+            <div class="goal-footer"><span id="goalBarLeft">0 min studied</span><span id="goalBarRight">Goal: 240 min</span></div>
+          </div>
+        </div>
+
+        <div class="timer-section">
+          <div class="timer-left">
+            <input id="subjectInput" class="timer-subject" placeholder="What are you studying?" maxlength="60">
+            <div class="timer-clock" id="timerClock">00:00:00</div>
+            <div class="mode-tabs">
+              <button class="mode-tab active" onclick="setMode('stopwatch',this)">Stopwatch</button>
+              <button class="mode-tab" onclick="setMode('pomodoro',this)">Pomodoro</button>
+              <button class="mode-tab" onclick="setMode('custom',this)">Custom</button>
+            </div>
+            <div id="customInput" style="display:none;margin-top:10px;">
+              <input id="customMins" type="number" class="field-input" placeholder="Minutes" min="1" max="480" style="width:130px;">
+            </div>
+            <div class="timer-controls">
+              <button id="startBtn"  class="btn btn-primary"    onclick="startTimer()">Start</button>
+              <button id="pauseBtn"  class="btn btn-secondary"  onclick="pauseTimer()"  style="display:none">Pause</button>
+              <button id="resumeBtn" class="btn btn-secondary"  onclick="resumeTimer()" style="display:none">Resume</button>
+              <button id="stopBtn"   class="btn btn-danger btn-sm" onclick="stopTimer()" style="display:none">Stop & Save</button>
+              <button id="resetBtn"  class="btn btn-secondary btn-sm" onclick="resetTimer()" style="display:none">Reset</button>
+            </div>
+          </div>
+          <div class="ring-wrap">
+            <svg width="130" height="130" viewBox="0 0 130 130">
+              <circle cx="65" cy="65" r="54" fill="none" stroke="var(--border)" stroke-width="8"/>
+              <circle id="ringFill" cx="65" cy="65" r="54" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round" stroke-dasharray="339.3" stroke-dashoffset="339.3" style="transition:stroke-dashoffset 1s linear,stroke 0.3s;"/>
+            </svg>
+            <div class="ring-text">
+              <div class="ring-pct" id="ringPct">0%</div>
+              <div class="ring-label">of goal</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Today's Sessions</div>
+            <button class="btn btn-sm btn-secondary" onclick="clearSessions()">Clear All</button>
+          </div>
+          <div class="panel-body" id="sessionsList">
+            <div class="empty"><div class="empty-icon">📚</div><div class="empty-text">No sessions yet. Start your first study session!</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMMUNITY PAGE -->
+      <div class="page" id="page-community">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <h1 style="font-family:'DM Serif Display',serif;font-size:30px;letter-spacing:-0.5px;margin-bottom:4px;">Study Community 🌍</h1>
+            <div style="font-size:13px;color:var(--muted);"><span class="live-dot"></span>Live leaderboard — updates in real time</div>
+          </div>
+          <button class="btn btn-sm btn-secondary" onclick="loadLeaderboard()">↻ Refresh</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">🏆 Today's Leaderboard</div>
+            <div style="font-size:12px;color:var(--muted);">Ranked by study time</div>
+          </div>
+          <div id="leaderboardList">
+            <div class="empty"><div class="empty-icon">👥</div><div class="empty-text">Loading leaderboard...</div></div>
+          </div>
+        </div>
+
+        <div id="aiMsgBox" style="display:none;" class="ai-msg">
+          <div style="font-weight:700;font-size:13px;color:var(--accent);margin-bottom:8px;">💌 Message Sent</div>
+          <div id="aiMsgText" style="font-size:15px;line-height:1.7;font-style:italic;"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">💌 Your Motivation Inbox</div>
+            <div style="font-size:12px;color:var(--muted);">Messages from your study buddies</div>
+          </div>
+          <div id="inboxList">
+            <div class="empty"><div class="empty-text" style="padding:24px;">No messages yet!</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BLOCKER PAGE -->
+      <div class="page" id="page-blocker">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <h1 style="font-family:'DM Serif Display',serif;font-size:30px;letter-spacing:-0.5px;margin-bottom:4px;">Site Blocker 🚫</h1>
+            <div style="font-size:13px;color:var(--muted);">Block distracting sites. Test URLs in the live browser.</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div id="shieldBadge" style="padding:5px 14px;border-radius:100px;background:var(--surface2);color:var(--muted);font-size:12px;font-weight:700;">Shield OFF</div>
+            <button class="btn btn-restrict" onclick="toggleMasterBlock()">🚫 Restrict Now</button>
+          </div>
+        </div>
+
+        <div id="restrictBanner" style="display:none;background:linear-gradient(135deg,#C8490A,#a83a08);color:white;border-radius:var(--r);padding:18px 24px;display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:20px;">🔒</span>
+            <div><div style="font-weight:700;">Blocking Active</div><div style="font-size:13px;opacity:0.85;" id="bannerCount">—</div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;" id="bannerTimer">00:00</span>
+            <button class="btn btn-sm" style="background:white;color:var(--red);font-weight:700;" onclick="toggleMasterBlock()">Stop</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">🌐 Blocked Sites</div><span style="font-size:12px;color:var(--muted);">Toggle to enable when Restrict Mode is ON</span></div>
+          <div class="panel-body">
+            <div class="blocker-grid" id="blockerGrid"></div>
+            <div style="display:flex;gap:8px;margin-top:14px;">
+              <input id="customSiteInput" class="field-input" placeholder="Add site (e.g. reddit.com)" style="padding:10px 14px;" onkeydown="if(event.key==='Enter')addCustomSite()">
+              <button class="btn btn-primary btn-sm" onclick="addCustomSite()">+ Add</button>
+            </div>
+            <div id="customTags" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">🖥️ In-App Browser (Live Blocker)</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span id="browserShieldLabel" style="font-size:12px;color:var(--muted);font-weight:600;">Shield OFF</span>
+              <label class="toggle-label">
+                <input type="checkbox" id="shieldToggle" onchange="toggleShield(this.checked)">
+                <span class="toggle-track"></span>
+                <span class="toggle-thumb"></span>
+              </label>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6;">Turn Shield ON, then type any URL. Blocked sites are intercepted right here — no extension needed.</div>
+            <div class="browser-bar" id="browserBar">
+              <span id="browserShieldIcon" style="font-size:18px;">🔓</span>
+              <input id="browserUrl" class="browser-url" placeholder="Enter URL (e.g. youtube.com, instagram.com)" onkeydown="if(event.key==='Enter')browserGo()">
+              <button class="btn btn-secondary btn-sm" onclick="browserGo()">Go →</button>
+              <button class="btn btn-secondary btn-sm" onclick="browserClear()">✕</button>
+            </div>
+            <div class="browser-viewport" id="browserViewport">
+              <div class="browser-empty">
+                <div style="font-size:36px;margin-bottom:12px;">🌐</div>
+                <div style="font-weight:600;font-size:15px;margin-bottom:6px;">In-App Browser</div>
+                <div style="font-size:13px;max-width:280px;line-height:1.7;">Turn Shield ON and type any URL — blocked sites get intercepted instantly.</div>
+              </div>
+            </div>
+            <div id="blockLogWrap" style="margin-top:16px;display:none;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <div style="font-weight:600;font-size:13px;">🚨 Blocked Attempts</div>
+                <button onclick="clearBlockLog()" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;">Clear</button>
+              </div>
+              <div id="blockLogList" style="display:flex;flex-direction:column;gap:4px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  FIREBASE CONFIG
+// ══════════════════════════════════════════════════════
+const FIREBASE_CONFIG_KEY = 'focusflow_firebase_config';
+const LOCAL_MODE_KEY      = 'focusflow_local_mode';
+
+let db = null, auth = null, currentUser = null, localMode = false;
+let leaderboardRef = null, inboxRef = null;
+
+function initFirebase(config) {
+  try {
+    if (firebase.apps.length) firebase.app().delete();
+    firebase.initializeApp(config);
+    db   = firebase.database();
+    auth = firebase.auth();
+    auth.onAuthStateChanged(onAuthStateChanged);
+    return true;
+  } catch(e) {
+    console.error('Firebase init failed:', e);
+    return false;
+  }
+}
+
+function onAuthStateChanged(fbUser) {
+  if (fbUser) {
+    const user = { uid: fbUser.uid, name: fbUser.displayName || fbUser.email.split('@')[0], email: fbUser.email, photoURL: fbUser.photoURL };
+    loginUser(user);
+  }
+}
+
+// Try loading saved config on page load
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  setGreeting();
+  renderBlockerGrid();
+  renderStreakDots();
+
+  const localModeFlag = localStorage.getItem(LOCAL_MODE_KEY);
+  if (localModeFlag === '1') { useLocalMode(); return; }
+
+  const savedConfig = localStorage.getItem(FIREBASE_CONFIG_KEY);
+  if (savedConfig) {
+    try {
+      const config = JSON.parse(savedConfig);
+      if (initFirebase(config)) return; // auth state change will handle login
+    } catch {}
+  }
+
+  // No config — show setup prompt if no local user
+  const localUser = localStorage.getItem('focusflow_user');
+  if (localUser) {
+    useLocalMode();
+  } else {
+    showFirebaseSetup();
+  }
+});
+
+function showFirebaseSetup() { hideAllLoginSteps(); document.getElementById('firebaseSetup').style.display='block'; }
+function showLoginHome()     { hideAllLoginSteps(); document.getElementById('loginHome').style.display='block'; }
+function showCustomForm()    { hideAllLoginSteps(); document.getElementById('loginCustom').style.display='block'; }
+function hideAllLoginSteps() {
+  ['loginHome','loginCustom','firebaseSetup'].forEach(id => document.getElementById(id).style.display='none');
+}
+
+function saveFirebaseConfig() {
+  const raw = document.getElementById('firebaseConfig').value.trim();
+  try {
+    // Extract JSON from the text (handle cases where user pastes the whole const line)
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('No JSON found');
+    const config = JSON.parse(match[0].replace(/(\w+):/g, '"$1":').replace(/'/g, '"'));
+    if (initFirebase(config)) {
+      localStorage.setItem(FIREBASE_CONFIG_KEY, JSON.stringify(config));
+      localStorage.removeItem(LOCAL_MODE_KEY);
+      toast('✓ Firebase connected! Sign in below.');
+      showLoginHome();
+    } else {
+      toast('⚠ Could not connect — check your config.');
+    }
+  } catch(e) {
+    // Try a simpler approach: eval the object
+    try {
+      const config = Function('return ' + raw)();
+      if (initFirebase(config)) {
+        localStorage.setItem(FIREBASE_CONFIG_KEY, JSON.stringify(config));
+        localStorage.removeItem(LOCAL_MODE_KEY);
+        toast('✓ Firebase connected!');
+        showLoginHome();
+      }
+    } catch(e2) {
+      toast('⚠ Invalid config. Copy it exactly from Firebase console.');
+    }
+  }
+}
+
+function useLocalMode() {
+  localMode = true;
+  localStorage.setItem(LOCAL_MODE_KEY, '1');
+  const localUser = localStorage.getItem('focusflow_user');
+  if (localUser) {
+    loginUser(JSON.parse(localUser));
+  } else {
+    showLoginHome();
+  }
+}
+
+// ── SIGN IN ─────────────────────────────────────────
+async function signInWithGoogle() {
+  if (!auth) { showFirebaseSetup(); return; }
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
+    // onAuthStateChanged handles the rest
+  } catch(e) {
+    toast('⚠ Sign in failed: ' + e.message);
+  }
+}
+
+function customSignIn() {
+  const nameEl  = document.getElementById('customName');
+  const emailEl = document.getElementById('customEmail');
+  const nameErr  = document.getElementById('nameErr');
+  const emailErr = document.getElementById('emailErr');
+  nameErr.style.display = emailErr.style.display = 'none';
+  nameEl.classList.remove('error'); emailEl.classList.remove('error');
+
+  let ok = true;
+  const name  = nameEl.value.trim();
+  const email = emailEl.value.trim().toLowerCase();
+
+  if (!name || name.length < 2) {
+    nameErr.textContent = 'Please enter your full name (at least 2 chars).';
+    nameErr.style.display = 'block'; nameEl.classList.add('error'); ok = false;
+  }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    emailErr.textContent = 'Please enter a valid email address.';
+    emailErr.style.display = 'block'; emailEl.classList.add('error'); ok = false;
+  }
+  if (!ok) return;
+
+  const btn = document.getElementById('customSignInBtn');
+  btn.textContent = 'Signing in...'; btn.disabled = true;
+  setTimeout(() => {
+    const user = { uid: 'local_' + email.replace(/[^a-z0-9]/g,'_'), name, email, photoURL: null };
+    localStorage.setItem('focusflow_user', JSON.stringify(user));
+    if (!localMode) { localMode = true; localStorage.setItem(LOCAL_MODE_KEY, '1'); }
+    loginUser(user);
+    btn.textContent = 'Get Started →'; btn.disabled = false;
+  }, 600);
+}
+
+function signOut() {
+  if (auth && !localMode) auth.signOut();
+  currentUser = null;
+  resetAppState();
+  document.getElementById('appScreen').classList.remove('active');
+  document.getElementById('loginScreen').classList.add('active');
+  showLoginHome();
+}
+
+// ── LOGIN USER ────────────────────────────────────────
+function loginUser(user) {
+  currentUser = user;
+  document.getElementById('loginScreen').classList.remove('active');
+  document.getElementById('appScreen').classList.add('active');
+
+  // Update sidebar
+  setAvatarEl(document.getElementById('sidebarAvatar'), user.name, 38);
+  document.getElementById('sidebarName').textContent  = user.name;
+  document.getElementById('sidebarEmail').textContent = user.email;
+
+  loadUserData();
+  subscribeLeaderboard();
+  subscribeInbox();
+}
+
+// ══════════════════════════════════════════════════════
+//  USER DATA (localStorage per email)
+// ══════════════════════════════════════════════════════
+let sessions = [], goalMins = 240, streak = 0, streakData = {};
+
+function userKey(k) { return `ff_${currentUser.email}_${k}`; }
+
+function loadUserData() {
+  sessions    = JSON.parse(localStorage.getItem(userKey('sessions'))  || '[]');
+  goalMins    = parseInt(localStorage.getItem(userKey('goalMins'))    || '240');
+  streak      = parseInt(localStorage.getItem(userKey('streak'))      || '0');
+  streakData  = JSON.parse(localStorage.getItem(userKey('streakData'))|| '{}');
+  renderDashboard();
+}
+
+function saveUserData() {
+  localStorage.setItem(userKey('sessions'),   JSON.stringify(sessions));
+  localStorage.setItem(userKey('goalMins'),   goalMins);
+  localStorage.setItem(userKey('streak'),     streak);
+  localStorage.setItem(userKey('streakData'), JSON.stringify(streakData));
+  pushToLeaderboard();
+}
+
+function resetAppState() {
+  sessions = []; goalMins = 240; streak = 0; streakData = {};
+  resetTimer();
+  if (leaderboardRef) leaderboardRef.off();
+  if (inboxRef) inboxRef.off();
+}
+
+// ══════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════
+const AVATAR_COLORS = [
+  ['#1a472a','#52b788'],['#7b2d00','#f4a261'],['#1b3a6b','#74b3ce'],
+  ['#4a1040','#c77dff'],['#0a3622','#40916c'],['#5c1a1a','#e07a5f']
+];
+function avatarColors(name) {
+  const i = ((name||'U').charCodeAt(0)) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[i];
+}
+function setAvatarEl(el, name, size) {
+  const [bg, fg] = avatarColors(name||'U');
+  const initials = (name||'U').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  el.style.cssText += `;width:${size}px;height:${size}px;background:${bg};color:${fg};font-size:${Math.round(size*0.36)}px;`;
+  el.textContent = initials;
+}
+function avatarHTML(name, size) {
+  const [bg, fg] = avatarColors(name||'U');
+  const initials = (name||'U').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  return `<div class="avatar" style="width:${size}px;height:${size}px;background:${bg};color:${fg};font-size:${Math.round(size*0.36)}px;">${initials}</div>`;
+}
+
+function fmtTime(s) {
+  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60);
+  if(h>0) return `${h}h ${m}m`;
+  if(m>0) return `${m}m`;
+  return `${s%60}s`;
+}
+function fmtClock(s) {
+  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
+  return (h>0?String(h).padStart(2,'0')+':':'') + String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
+}
+function todayKey() { return new Date().toDateString(); }
+function setGreeting() {
+  const h = new Date().getHours();
+  const g = h<12?'Good morning':'Good afternoon ☀️';
+  document.getElementById('greeting').textContent = (h>=17?'Good evening 🌙':g) + ', ' + ((currentUser?.name||'').split(' ')[0]||'');
+}
+
+let toastTimer;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// Avatar preview in login form
+function updateAvatarPreview(name) {
+  const el = document.getElementById('avatarPreview');
+  const nameEl = document.getElementById('avatarName');
+  if (!name.trim()) { el.textContent='?'; el.style.background='#1a472a'; el.style.color='#52b788'; nameEl.textContent='Your name here'; return; }
+  const [bg,fg] = avatarColors(name);
+  const initials = name.trim().split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  el.textContent = initials; el.style.background=bg; el.style.color=fg;
+  nameEl.textContent = name.trim();
+}
+
+// ══════════════════════════════════════════════════════
+//  DASHBOARD RENDER
+// ══════════════════════════════════════════════════════
+function renderDashboard() {
+  const today   = todayKey();
+  const todaySess = sessions.filter(s=>s.date===today);
+  const todaySecs = todaySess.reduce((a,s)=>a+s.secs,0);
+  const todayMins = Math.floor(todaySecs/60);
+  const h=Math.floor(todayMins/60), m=todayMins%60;
+  const pct = Math.min((todaySecs/(goalMins*60))*100,100);
+
+  document.getElementById('todayTotal').textContent  = `${h}h ${m}m`;
+  document.getElementById('sessionCount').textContent = todaySess.length;
+  document.getElementById('longestSess').textContent  = todaySess.length ? fmtTime(Math.max(...todaySess.map(s=>s.secs))) : '—';
+  document.getElementById('goalDisp').textContent     = `${Math.floor(goalMins/60)}h ${goalMins%60}m`;
+  document.getElementById('goalBar').style.width      = pct+'%';
+  document.getElementById('goalBarLeft').textContent  = todayMins+' min studied';
+  document.getElementById('goalBarRight').textContent = 'Goal: '+goalMins+' min';
+
+  // Ring
+  const circ = 2*Math.PI*54; // r=54
+  document.getElementById('ringFill').style.strokeDashoffset = circ*(1-pct/100);
+  document.getElementById('ringPct').textContent = Math.round(pct)+'%';
+
+  // Streak
+  updateStreak(sessions);
+  renderStreakDots();
+  setGreeting();
+  renderSessions(todaySess);
+}
+
+function renderSessions(todaySess) {
+  const el = document.getElementById('sessionsList');
+  if (!todaySess.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📚</div><div class="empty-text">No sessions yet. Start your first!</div></div>';
+    return;
+  }
+  el.innerHTML = [...todaySess].reverse().map(s => `
+    <div class="session-item">
+      <div class="session-dot"></div>
+      <div class="session-subj">${s.subject}</div>
+      <div class="session-dur">${fmtTime(s.secs)}</div>
+      <div class="session-time">${s.time}</div>
+      <button class="session-del" onclick="deleteSession(${s.id})">×</button>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════
+//  STREAK
+// ══════════════════════════════════════════════════════
+function updateStreak(sess) {
+  const today = todayKey();
+  const todayMins = Math.floor(sess.filter(s=>s.date===today).reduce((a,s)=>a+s.secs,0)/60);
+  streakData[today] = todayMins;
+  let s2=0, d=new Date();
+  while(true) {
+    const key=d.toDateString();
+    if((streakData[key]||0)>=Math.min(goalMins,30)){s2++;d.setDate(d.getDate()-1);}
+    else break;
+  }
+  streak = s2;
+  document.getElementById('streakNum').textContent = streak;
+}
+
+function renderStreakDots() {
+  const days=['S','M','T','W','T','F','S'];
+  const today=new Date();
+  let html='';
+  for(let i=6;i>=0;i--){
+    const d=new Date(today); d.setDate(today.getDate()-i);
+    const key=d.toDateString();
+    const done=(streakData[key]||0)>=Math.min(goalMins,30);
+    const cls=i===0?(done?'streak-dot today-done':'streak-dot'):(done?'streak-dot done':'streak-dot');
+    html+=`<div class="${cls}">${days[d.getDay()]}</div>`;
+  }
+  document.getElementById('streakDots').innerHTML=html;
+}
+
+// ══════════════════════════════════════════════════════
+//  SESSIONS
+// ══════════════════════════════════════════════════════
+function addSession(secs) {
+  const sub = document.getElementById('subjectInput').value.trim() || 'Study Session';
+  const s = {
+    id: Date.now(), subject: sub, secs, date: todayKey(),
+    time: new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})
+  };
+  sessions.push(s);
+  saveUserData();
+  renderDashboard();
+  toast(`✓ Saved: ${sub} (${fmtTime(secs)})`);
+}
+
+function deleteSession(id) {
+  sessions = sessions.filter(s=>s.id!==id);
+  saveUserData(); renderDashboard();
+}
+
+function clearSessions() {
+  if(!confirm('Clear all sessions today?')) return;
+  sessions = sessions.filter(s=>s.date!==todayKey());
+  saveUserData(); renderDashboard();
+}
+
+function editGoal() {
+  const v = prompt('Daily goal (minutes):', goalMins);
+  if (v && +v>0) { goalMins=+v; saveUserData(); renderDashboard(); toast('Goal updated!'); }
+}
+
+function editName() {
+  const n = prompt('Enter new display name:', currentUser.name);
+  if (n && n.trim().length>=2) {
+    currentUser.name = n.trim();
+    if (localMode) { const u=JSON.parse(localStorage.getItem('focusflow_user')||'{}'); u.name=currentUser.name; localStorage.setItem('focusflow_user',JSON.stringify(u)); }
+    setAvatarEl(document.getElementById('sidebarAvatar'), currentUser.name, 38);
+    document.getElementById('sidebarName').textContent = currentUser.name;
+    saveUserData(); setGreeting();
+    toast('✓ Name updated to '+currentUser.name);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  TIMER
+// ══════════════════════════════════════════════════════
+let timerSecs=0, timerRunning=false, timerPaused=false, timerInterval=null;
+let timerMode='stopwatch', goalSecs=0;
+
+function setMode(m, btn) {
+  timerMode=m;
+  document.querySelectorAll('.mode-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('customInput').style.display = m==='custom'?'block':'none';
+  resetTimer();
+}
+
+function getGoalSecs() {
+  if(timerMode==='pomodoro') return 25*60;
+  if(timerMode==='custom')   return (parseInt(document.getElementById('customMins').value)||30)*60;
+  return 0;
+}
+
+function startTimer() {
+  goalSecs=getGoalSecs();
+  timerRunning=true; timerPaused=false;
+  document.getElementById('startBtn').style.display='none';
+  document.getElementById('pauseBtn').style.display='';
+  document.getElementById('stopBtn').style.display='';
+  document.getElementById('resetBtn').style.display='';
+  document.getElementById('timerClock').classList.add('running');
+  timerInterval=setInterval(tick,1000);
+}
+
+function tick() {
+  timerSecs++;
+  document.getElementById('timerClock').textContent = fmtClock(timerSecs);
+  if(goalSecs>0&&timerSecs>=goalSecs){ clearInterval(timerInterval); timerRunning=false; addSession(timerSecs); timerSecs=0; document.getElementById('timerClock').textContent='00:00:00'; resetTimerUI(); toast('🎉 Session complete!'); }
+  updateRing();
+}
+
+function updateRing() {
+  const today=todayKey();
+  const todaySecs=sessions.filter(s=>s.date===today).reduce((a,s)=>a+s.secs,0)+timerSecs;
+  const pct=Math.min((todaySecs/(goalMins*60))*100,100);
+  const circ=2*Math.PI*54;
+  document.getElementById('ringFill').style.strokeDashoffset=circ*(1-pct/100);
+  document.getElementById('ringPct').textContent=Math.round(pct)+'%';
+}
+
+function pauseTimer() {
+  timerPaused=true; clearInterval(timerInterval);
+  document.getElementById('pauseBtn').style.display='none';
+  document.getElementById('resumeBtn').style.display='';
+  document.getElementById('timerClock').classList.remove('running');
+  document.getElementById('timerClock').classList.add('paused');
+  document.getElementById('ringFill').style.stroke='var(--red)';
+}
+
+function resumeTimer() {
+  timerPaused=false;
+  document.getElementById('pauseBtn').style.display='';
+  document.getElementById('resumeBtn').style.display='none';
+  document.getElementById('timerClock').classList.remove('paused');
+  document.getElementById('timerClock').classList.add('running');
+  document.getElementById('ringFill').style.stroke='var(--accent)';
+  timerInterval=setInterval(tick,1000);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval); timerRunning=false; timerPaused=false;
+  if(timerSecs>=30) addSession(timerSecs);
+  else toast('Too short to save (min 30s)');
+  timerSecs=0;
+  document.getElementById('timerClock').textContent='00:00:00';
+  resetTimerUI();
+}
+
+function resetTimer() {
+  clearInterval(timerInterval); timerRunning=false; timerPaused=false; timerSecs=0;
+  document.getElementById('timerClock').textContent='00:00:00';
+  document.getElementById('timerClock').className='timer-clock';
+  document.getElementById('ringFill').style.stroke='var(--accent)';
+  resetTimerUI();
+}
+
+function resetTimerUI() {
+  document.getElementById('startBtn').style.display='';
+  document.getElementById('pauseBtn').style.display='none';
+  document.getElementById('resumeBtn').style.display='none';
+  document.getElementById('stopBtn').style.display='none';
+  document.getElementById('resetBtn').style.display='none';
+  document.getElementById('timerClock').className='timer-clock';
+  document.getElementById('ringFill').style.stroke='var(--accent)';
+}
+
+// ══════════════════════════════════════════════════════
+//  FIREBASE LEADERBOARD
+// ══════════════════════════════════════════════════════
+function pushToLeaderboard() {
+  const today=todayKey();
+  const todaySecs=sessions.filter(s=>s.date===today).reduce((a,s)=>a+s.secs,0);
+  const entry={name:currentUser.name,email:currentUser.email,todaySecs,streak,lastActive:Date.now()};
+
+  if(!localMode && db) {
+    const safeKey = currentUser.email.replace(/[.#$[\]]/g,'_');
+    db.ref(`leaderboard/${today}/${safeKey}`).set(entry);
+  } else {
+    // Local mode: store in localStorage as fake leaderboard
+    const lb = JSON.parse(localStorage.getItem('ff_leaderboard_'+today)||'{}');
+    lb[currentUser.email] = entry;
+    localStorage.setItem('ff_leaderboard_'+today, JSON.stringify(lb));
+    renderLeaderboard(Object.values(lb));
+  }
+}
+
+function subscribeLeaderboard() {
+  const today=todayKey();
+  if(!localMode && db) {
+    leaderboardRef = db.ref(`leaderboard/${today}`);
+    leaderboardRef.on('value', snap => {
+      const data = snap.val() || {};
+      renderLeaderboard(Object.values(data));
+    });
+  } else {
+    loadLeaderboard();
+  }
+}
+
+function loadLeaderboard() {
+  const today=todayKey();
+  if(!localMode && db) {
+    db.ref(`leaderboard/${today}`).once('value').then(snap => {
+      const data = snap.val() || {};
+      renderLeaderboard(Object.values(data));
+    });
+  } else {
+    const lb = JSON.parse(localStorage.getItem('ff_leaderboard_'+today)||'{}');
+    // Also include current user
+    const today2=todayKey();
+    const todaySecs=sessions.filter(s=>s.date===today2).reduce((a,s)=>a+s.secs,0);
+    if(currentUser) lb[currentUser.email]={name:currentUser.name,email:currentUser.email,todaySecs,streak,lastActive:Date.now()};
+    renderLeaderboard(Object.values(lb));
+  }
+}
+
+function renderLeaderboard(users) {
+  users.sort((a,b)=>(b.todaySecs||0)-(a.todaySecs||0));
+  const maxSecs = users[0]?.todaySecs || 1;
+  const el = document.getElementById('leaderboardList');
+
+  if(!users.length) {
+    el.innerHTML='<div class="empty"><div class="empty-icon">👥</div><div class="empty-text">No one has studied yet today. Be the first!</div></div>';
+    return;
+  }
+
+  el.innerHTML = users.map((u,i) => {
+    const isMe = u.email===currentUser?.email;
+    const rank = i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
+    const mins = Math.round((u.todaySecs||0)/60);
+    const h=Math.floor(mins/60),m=mins%60;
+    const pct=Math.round(((u.todaySecs||0)/maxSecs)*100);
+    const isOnline = (Date.now()-(u.lastActive||0)) < 5*60*1000;
+    return `
+    <div class="leaderboard-row ${isMe?'me':''}">
+      <div class="rank-badge">${rank}</div>
+      ${avatarHTML(u.name,40)}
+      <div class="lb-info">
+        <div class="lb-name">
+          ${u.name}
+          ${isMe?'<span class="badge-you">You</span>':''}
+          ${isOnline&&!isMe?'<span class="badge-live">live</span>':''}
+        </div>
+        <div class="lb-email">${u.email}</div>
+      </div>
+      <div class="lb-bar-wrap">
+        <div class="lb-bar-track"><div class="lb-bar-fill" style="width:${pct}%"></div></div>
+        <div class="lb-time">${h>0?h+'h ':''  }${m}m</div>
+      </div>
+      ${!isMe?`<button class="motivate-btn" onclick="sendMotivation('${u.email}','${u.name.replace(/'/g,"\\'")}',${u.todaySecs||0})" id="motbtn_${u.email.replace(/[^a-z0-9]/g,'_')}">💌 Motivate</button>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════
+//  AI MOTIVATION
+// ══════════════════════════════════════════════════════
+async function sendMotivation(toEmail, toName, theirSecs) {
+  const btn = document.getElementById('motbtn_'+toEmail.replace(/[^a-z0-9]/g,'_'));
+  if(btn) { btn.disabled=true; btn.textContent='Sending...'; }
+
+  const myMins    = Math.round(sessions.filter(s=>s.date===todayKey()).reduce((a,s)=>a+s.secs,0)/60);
+  const theirMins = Math.round(theirSecs/60);
+
+  let msg = '';
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        messages:[{role:'user',content:`You are a warm, encouraging study buddy. Write a short (2-3 sentences) motivational message from ${currentUser.name} to ${toName}.
+Context: ${currentUser.name} has studied ${myMins} minutes today. ${toName} has studied ${theirMins} minutes today.
+Be specific, personal, genuine — like a real classmate. Casual tone. No emojis at start.`}]
+      })
+    });
+    const data = await res.json();
+    msg = data.content?.[0]?.text || "Keep going — every minute counts! You're doing amazing!";
+  } catch {
+    msg = `Hey ${toName}! ${myMins>theirMins?`I've put in ${myMins} mins today — you can catch up!`:`You're crushing it! Keep that focus going!`}`;
+  }
+
+  // Save to Firebase or localStorage
+  const msgObj = { from:currentUser.name, fromEmail:currentUser.email, to:toName, toEmail, message:msg, time:Date.now() };
+  if(!localMode && db) {
+    db.ref(`inbox/${toEmail.replace(/[.#$[\]]/g,'_')}`).push(msgObj);
+  } else {
+    const inbox = JSON.parse(localStorage.getItem('ff_inbox_'+toEmail)||'[]');
+    inbox.unshift(msgObj);
+    localStorage.setItem('ff_inbox_'+toEmail, JSON.stringify(inbox.slice(0,20)));
+  }
+
+  document.getElementById('aiMsgBox').style.display='block';
+  document.getElementById('aiMsgText').textContent = '"'+msg+'"';
+  toast('💌 Message sent to '+toName+'!');
+  if(btn) { btn.textContent='✓ Sent!'; setTimeout(()=>{ btn.textContent='💌 Motivate'; btn.disabled=false; },3000); }
+}
+
+function subscribeInbox() {
+  if(!currentUser) return;
+  if(!localMode && db) {
+    const safeEmail = currentUser.email.replace(/[.#$[\]]/g,'_');
+    inboxRef = db.ref(`inbox/${safeEmail}`);
+    inboxRef.on('value', snap => {
+      const data = snap.val() || {};
+      const msgs = Object.values(data).sort((a,b)=>b.time-a.time);
+      renderInbox(msgs);
+      const badge = document.getElementById('inboxBadge');
+      badge.style.display = msgs.length?'':'none';
+      badge.textContent = msgs.length;
+    });
+  } else {
+    const msgs = JSON.parse(localStorage.getItem('ff_inbox_'+currentUser.email)||'[]');
+    renderInbox(msgs);
+  }
+}
+
+function renderInbox(msgs) {
+  const el = document.getElementById('inboxList');
+  if(!msgs.length) { el.innerHTML='<div class="empty"><div class="empty-text" style="padding:24px">No messages yet! When someone motivates you, it appears here 🌱</div></div>'; return; }
+  el.innerHTML = msgs.slice(0,10).map(m => `
+    <div class="inbox-msg">
+      <div class="inbox-from">
+        ${avatarHTML(m.from,24)}
+        <span style="font-weight:600;font-size:13px;">${m.from}</span>
+        <span style="font-size:11px;color:var(--muted);margin-left:auto;">${new Date(m.time).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</span>
+      </div>
+      <div class="inbox-text">"${m.message}"</div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════
+//  BLOCKER
+// ══════════════════════════════════════════════════════
+const SITES_LIST = [
+  {id:'youtube',name:'YouTube Shorts',desc:'shorts.youtube.com',icon:'▶️',domains:['youtube.com','youtu.be']},
+  {id:'instagram',name:'Instagram',desc:'Reels & Stories',icon:'📸',domains:['instagram.com']},
+  {id:'twitter',name:'X / Twitter',desc:'twitter.com',icon:'🐦',domains:['twitter.com','x.com']},
+  {id:'tiktok',name:'TikTok',desc:'tiktok.com',icon:'🎵',domains:['tiktok.com']},
+  {id:'reddit',name:'Reddit',desc:'reddit.com',icon:'🤖',domains:['reddit.com']},
+  {id:'netflix',name:'Netflix',desc:'netflix.com',icon:'🎬',domains:['netflix.com']},
+];
+let blockedSites = JSON.parse(localStorage.getItem('ff_blocked')||'{"youtube":true,"instagram":true,"twitter":true,"tiktok":true}');
+let customSites  = JSON.parse(localStorage.getItem('ff_custom') ||'[]');
+let masterBlockOn=false, blockTimerInt=null, blockSecs=0;
+let shieldOn=false, blockLog=[];
+
+function renderBlockerGrid() {
+  const el = document.getElementById('blockerGrid');
+  if(!el) return;
+  el.innerHTML = SITES_LIST.map(s=>`
+    <div class="blocker-item ${blockedSites[s.id]?'on':''}" id="bitem_${s.id}">
+      <div class="blocker-left">
+        <span style="font-size:20px;">${s.icon}</span>
+        <div><div class="blocker-name">${s.name}</div><div class="blocker-desc">${s.desc}</div></div>
+      </div>
+      <label class="toggle-label">
+        <input type="checkbox" ${blockedSites[s.id]?'checked':''} onchange="toggleSite('${s.id}',this.checked)">
+        <span class="toggle-track"></span>
+        <span class="toggle-thumb"></span>
+      </label>
+    </div>`).join('');
+  renderCustomTags();
+}
+
+function toggleSite(id,on) {
+  blockedSites[id]=on;
+  document.getElementById('bitem_'+id)?.classList.toggle('on',on);
+  localStorage.setItem('ff_blocked',JSON.stringify(blockedSites));
+}
+
+function addCustomSite() {
+  const el=document.getElementById('customSiteInput');
+  let s=el.value.trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/.*/,'');
+  if(!s) return;
+  if(!customSites.includes(s)) { customSites.push(s); localStorage.setItem('ff_custom',JSON.stringify(customSites)); renderCustomTags(); toast('Added: '+s); }
+  el.value='';
+}
+
+function removeCustomSite(s) {
+  customSites=customSites.filter(x=>x!==s);
+  localStorage.setItem('ff_custom',JSON.stringify(customSites));
+  renderCustomTags();
+}
+
+function renderCustomTags() {
+  const el=document.getElementById('customTags');
+  if(!el) return;
+  el.innerHTML=customSites.map(s=>`
+    <div class="custom-tag">${s} <button onclick="removeCustomSite('${s}')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:14px;padding:0;line-height:1;">×</button></div>`).join('');
+}
+
+function getAllBlockedDomains() {
+  let list=[];
+  SITES_LIST.forEach(s=>{ if(blockedSites[s.id]) list.push(...s.domains); });
+  list.push(...customSites);
+  return list;
+}
+
+function isBlocked(url) {
+  if(!shieldOn) return false;
+  try {
+    let u=url.trim(); if(!u.startsWith('http')) u='https://'+u;
+    const host=new URL(u).hostname.replace(/^www\./,'');
+    return getAllBlockedDomains().map(d=>d.replace(/^www\./,'')).some(b=>host===b||host.endsWith('.'+b));
+  } catch { return false; }
+}
+
+function extractDomain(url) {
+  try { let u=url; if(!u.startsWith('http')) u='https://'+u; return new URL(u).hostname.replace(/^www\./,''); }
+  catch { return url; }
+}
+
+function toggleShield(on) {
+  shieldOn=on;
+  const lbl=document.getElementById('browserShieldLabel');
+  const icon=document.getElementById('browserShieldIcon');
+  const bar=document.getElementById('browserBar');
+  lbl.textContent=on?'🛡️ Shield ON':'Shield OFF';
+  lbl.style.color=on?'var(--accent)':'var(--muted)';
+  icon.textContent=on?'🔒':'🔓';
+  bar.classList.toggle('shield',on);
+  toast(on?'🛡️ Shield ON — blocked sites will be intercepted':'Shield OFF');
+}
+
+function toggleMasterBlock() {
+  masterBlockOn=!masterBlockOn;
+  const banner=document.getElementById('restrictBanner');
+  const badge=document.getElementById('shieldBadge');
+  if(masterBlockOn) {
+    banner.style.display='flex'; badge.textContent='⬤ Blocking ON'; badge.style.background='var(--red-light)'; badge.style.color='var(--red)';
+    blockSecs=0;
+    blockTimerInt=setInterval(()=>{ blockSecs++; const m=String(Math.floor(blockSecs/60)).padStart(2,'0'),s=String(blockSecs%60).padStart(2,'0'); document.getElementById('bannerTimer').textContent=m+':'+s; },1000);
+    const count=getAllBlockedDomains().length;
+    document.getElementById('bannerCount').textContent=count+' site'+(count!==1?'s':'')+' restricted';
+    document.getElementById('shieldToggle').checked=true; toggleShield(true);
+    toast('🚫 Restrict Mode ON — stay focused!');
+  } else {
+    banner.style.display='none'; badge.textContent='Shield OFF'; badge.style.background='var(--surface2)'; badge.style.color='var(--muted)';
+    clearInterval(blockTimerInt); toast('Blocking ended.');
+  }
+}
+
+function browserGo() {
+  const raw=document.getElementById('browserUrl').value.trim();
+  if(!raw) return;
+  let url=raw; if(!url.startsWith('http')) url='https://'+url;
+  const domain=extractDomain(url);
+  const vp=document.getElementById('browserViewport');
+
+  if(isBlocked(url)) {
+    const now=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+    blockLog.unshift({domain,time:now});
+    renderBlockLog();
+    vp.innerHTML=`<div class="browser-block-screen">
+      <div style="font-size:52px;margin-bottom:14px;animation:shake 0.4s ease;">🚫</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:26px;color:var(--red);margin-bottom:8px;">Site Blocked</div>
+      <div class="block-domain">${domain}</div>
+      <div style="font-size:13px;color:var(--muted);max-width:300px;line-height:1.7;">Stay focused — you've got this! Come back after your session.</div>
+      <div style="display:flex;gap:8px;margin-top:18px;">
+        <button class="btn btn-secondary btn-sm" onclick="browserClear()">← Go Back</button>
+        <button class="btn btn-danger btn-sm" onclick="unblockDomain('${domain}')">Unblock Temporarily</button>
+      </div>
+    </div>`;
+    toast('🚫 Blocked: '+domain);
+  } else {
+    vp.innerHTML=`<div class="browser-safe-screen">
+      <div style="font-size:36px;margin-bottom:12px;">✅</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--accent);margin-bottom:8px;">${domain} is not blocked</div>
+      <div style="font-size:13px;color:var(--muted);max-width:320px;line-height:1.7;margin-bottom:16px;">This site is safe. Click below to open it in a new tab.</div>
+      <a href="${url}" target="_blank" rel="noopener" style="background:var(--accent);color:white;padding:10px 20px;border-radius:10px;font-weight:600;font-size:14px;text-decoration:none;">🌐 Open ${domain} →</a>
+      <button onclick="quickBlock('${domain}')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:12px;font-weight:600;margin-top:12px;">+ Add to block list</button>
+    </div>`;
+  }
+}
+
+function unblockDomain(domain) {
+  if(!confirm(`Temporarily unblock ${domain}?`)) return;
+  customSites=customSites.filter(s=>!domain.includes(s));
+  SITES_LIST.forEach(s=>{ if(s.domains.some(d=>domain.includes(d))) blockedSites[s.id]=false; });
+  localStorage.setItem('ff_custom',JSON.stringify(customSites));
+  localStorage.setItem('ff_blocked',JSON.stringify(blockedSites));
+  renderBlockerGrid(); browserClear(); toast('Unblocked: '+domain);
+}
+
+function quickBlock(domain) {
+  if(!customSites.includes(domain)) { customSites.push(domain); localStorage.setItem('ff_custom',JSON.stringify(customSites)); renderCustomTags(); toast('+ Blocked: '+domain); browserClear(); }
+}
+
+function browserClear() {
+  document.getElementById('browserUrl').value='';
+  document.getElementById('browserViewport').innerHTML=`<div class="browser-empty"><div style="font-size:36px;margin-bottom:12px;">🌐</div><div style="font-weight:600;font-size:15px;margin-bottom:6px;">In-App Browser</div><div style="font-size:13px;max-width:280px;line-height:1.7;">Turn Shield ON and type any URL — blocked sites get intercepted instantly.</div></div>`;
+}
+
+function renderBlockLog() {
+  const wrap=document.getElementById('blockLogWrap');
+  const list=document.getElementById('blockLogList');
+  wrap.style.display=blockLog.length?'block':'none';
+  list.innerHTML=blockLog.slice(0,5).map(e=>`
+    <div class="block-log-item">
+      <span>🚫</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--red);flex:1;">${e.domain}</span>
+      <span style="font-size:11px;color:var(--muted);">${e.time}</span>
+    </div>`).join('');
+}
+
+function clearBlockLog() { blockLog=[]; renderBlockLog(); }
+
+// ══════════════════════════════════════════════════════
+//  PAGE NAVIGATION
+// ══════════════════════════════════════════════════════
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  btn.classList.add('active');
+  if(name==='community') { loadLeaderboard(); subscribeInbox(); }
+  if(name==='blocker') renderBlockerGrid();
+}
+
+// CSS for shake animation (used in browser)
+const style=document.createElement('style');
+style.textContent=`@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}`;
+document.head.appendChild(style);
+</script>
+</body>
+</html>
